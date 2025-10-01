@@ -230,7 +230,8 @@ def main():
     print("="*80)
     
     adaboost_model = AdaBoostFaceClassifier(n_estimators=ADABOOST_N_ESTIMATORS)
-    ada_training_time = adaboost_model.fit(train_loader, val_loader)
+    ada_training_time = adaboost_model.fit(train_loader, val_loader, 
+                                           max_samples=ADABOOST_MAX_SAMPLES)
     
     print("\n[EVAL] Evaluating AdaBoost on test set...")
     ada_predictions, ada_targets, ada_inference_time = adaboost_model.predict(test_loader)

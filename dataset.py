@@ -100,14 +100,23 @@ class FaceDataset(Dataset):
 def get_transforms():
     """Tạo data transforms cho training và testing"""
     
-    train_transform = transforms.Compose([
+    # Training transforms với augmentation mạnh hơn
+    train_transform_list = [
         transforms.Resize(IMAGE_SIZE),
         transforms.RandomHorizontalFlip(RANDOM_HORIZONTAL_FLIP_PROB),
         transforms.RandomRotation(RANDOM_ROTATION_DEGREES),
         transforms.ColorJitter(**COLOR_JITTER_PARAMS),
         transforms.ToTensor(),
         transforms.Normalize(mean=NORMALIZE_MEAN, std=NORMALIZE_STD)
-    ])
+    ]
+    
+    # Thêm Random Erasing nếu enabled (tăng robustness, giảm overfitting)
+    if USE_RANDOM_ERASING:
+        train_transform_list.append(
+            transforms.RandomErasing(p=RANDOM_ERASING_PROB, scale=(0.02, 0.15))
+        )
+    
+    train_transform = transforms.Compose(train_transform_list)
 
     test_transform = transforms.Compose([
         transforms.Resize(IMAGE_SIZE),

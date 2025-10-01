@@ -75,7 +75,8 @@ def train_model(model, train_loader, val_loader, num_epochs=200,
     model = model.to(device)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    # Thêm weight decay (L2 regularization) để giảm overfitting
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)
     
     # ReduceLROnPlateau: giảm LR khi val acc không cải thiện
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
@@ -83,6 +84,16 @@ def train_model(model, train_loader, val_loader, num_epochs=200,
         factor=LR_SCHEDULER_FACTOR, 
         patience=LR_SCHEDULER_PATIENCE
     )
+    
+    # Warmup scheduler (tăng LR dần trong các epochs đầu)
+    if USE_WARMUP:
+        warmup_scheduler = optim.lr_scheduler.LinearLR(
+            optimizer, start_factor=0.1, end_factor=1.0, 
+            total_iters=WARMUP_EPOCHS
+        )
+        print(f"[INFO] Using warmup: LR will increase from {LEARNING_RATE*0.1:.6f} to {LEARNING_RATE:.6f} in {WARMUP_EPOCHS} epochs")
+    else:
+        warmup_scheduler = None
     
     # Early stopping
     early_stopping = EarlyStopping(patience=patience, 
@@ -171,7 +182,12 @@ def train_model(model, train_loader, val_loader, num_epochs=200,
                   f'LR: {current_lr:.6f}')
 
         # Learning rate scheduler
-        scheduler.step(val_acc)
+        # Warmup phase: tăng LR dần
+        if USE_WARMUP and epoch < WARMUP_EPOCHS:
+            warmup_scheduler.step()
+        # Sau warmup: giảm LR khi plateau
+        else:
+            scheduler.step(val_acc)
         
         # Early stopping check
         if early_stopping(val_acc, epoch + 1):

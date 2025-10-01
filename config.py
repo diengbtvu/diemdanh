@@ -17,23 +17,28 @@ VAL_RATIO = 0.15
 TEST_RATIO = 0.15
 
 # ===== TRAINING CONFIGURATION =====
-# Training hyperparameters
-MAX_EPOCHS = 200
-BATCH_SIZE = 32
-LEARNING_RATE = 0.001
+# Training hyperparameters - OPTIMIZED FOR BEST RESULTS
+MAX_EPOCHS = 300  # Tăng lên 300 epochs để train kỹ hơn
+BATCH_SIZE = 32  # Giảm xuống 16 hoặc 8 nếu out of memory
+LEARNING_RATE = 0.0001  # Giảm LR để train stable hơn, converge tốt hơn
 NUM_WORKERS = 0  # Đặt 0 cho Windows để tránh lỗi multiprocessing
 
-# Early stopping
-EARLY_STOP_PATIENCE = 15
-EARLY_STOP_MIN_DELTA = 0.001
+# Early stopping - CHO PHÉP TRAIN LÂU HƠN
+EARLY_STOP_PATIENCE = 30  # Tăng lên 30 epochs (cho phép model học lâu hơn)
+EARLY_STOP_MIN_DELTA = 0.0001  # Giảm xuống 0.01% (nhạy hơn với cải thiện nhỏ)
 
-# Learning rate scheduler
-LR_SCHEDULER_FACTOR = 0.5
-LR_SCHEDULER_PATIENCE = 7
+# Learning rate scheduler - FINE-TUNE CHẬM HƠN
+LR_SCHEDULER_FACTOR = 0.3  # Giảm LR xuống 30% (chậm hơn, stable hơn)
+LR_SCHEDULER_PATIENCE = 10  # Tăng lên 10 epochs (patient hơn)
+
+# Learning rate warmup
+USE_WARMUP = True
+WARMUP_EPOCHS = 5  # Tăng LR dần trong 5 epochs đầu
 
 # ===== MODEL CONFIGURATION =====
-# AdaBoost
-ADABOOST_N_ESTIMATORS = 100
+# AdaBoost - TRAIN TRÊN TẤT CẢ DATA
+ADABOOST_N_ESTIMATORS = 200  # Tăng lên 200 weak learners
+ADABOOST_MAX_SAMPLES = None  # None = TRAIN HẾT TẤT CẢ DATA (best accuracy)
 
 # ===== DEVICE CONFIGURATION =====
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -46,15 +51,23 @@ IMAGE_SIZE = (224, 224)
 NORMALIZE_MEAN = [0.485, 0.456, 0.406]
 NORMALIZE_STD = [0.229, 0.224, 0.225]
 
-# Data augmentation
+# Data augmentation - CÂN BẰNG giữa augmentation và học được features
 RANDOM_HORIZONTAL_FLIP_PROB = 0.5
-RANDOM_ROTATION_DEGREES = 10
+RANDOM_ROTATION_DEGREES = 10  # Giảm về 10 (quá nhiều rotation làm khó học)
 COLOR_JITTER_PARAMS = {
-    'brightness': 0.2,
+    'brightness': 0.2,  # Vừa phải
     'contrast': 0.2,
     'saturation': 0.2,
     'hue': 0.1
 }
+
+# Augmentation options - VỪA PHẢI để không làm khó model
+USE_RANDOM_ERASING = True
+RANDOM_ERASING_PROB = 0.2  # Giảm xuống 20% (vừa đủ)
+
+# Advanced augmentation
+USE_MIXUP = False  # Mixup có thể giúp nhưng phức tạp hơn
+MIXUP_ALPHA = 0.2
 
 # ===== SYSTEM INFO =====
 def print_system_info():

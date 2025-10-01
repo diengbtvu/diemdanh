@@ -196,17 +196,31 @@ class AdaBoostFaceClassifier:
 
         return np.array(features)
 
-    def fit(self, train_loader, val_loader=None):
-        """Train AdaBoost classifier"""
+    def fit(self, train_loader, val_loader=None, max_samples=None):
+        """
+        Train AdaBoost classifier
+        
+        Args:
+            train_loader: Training data loader
+            val_loader: Validation data loader (not used)
+            max_samples: Maximum số samples để train (None = train hết)
+                        Khuyến khích: 5000-10000 cho AdaBoost (classical ML)
+        """
         import time
         
         print("Extracting features for AdaBoost training...")
+        
+        # Mặc định: train 5000 samples cho AdaBoost
+        # Nếu max_samples=None: TRAIN HẾT TẤT CẢ DATA
+        if max_samples is None:
+            max_samples = float('inf')  # Không giới hạn - train hết
+            print(f"[INFO] AdaBoost will train on ALL available samples (best accuracy mode)")
 
         # Extract features from training data
         X_train, y_train = [], []
         for batch_idx, (images, labels) in enumerate(train_loader):
             if batch_idx % 10 == 0:
-                print(f"Processing batch {batch_idx}/{len(train_loader)}")
+                print(f"Processing batch {batch_idx}/{len(train_loader)} | Samples: {len(X_train)}/{max_samples}")
 
             # Denormalize images
             mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
@@ -217,8 +231,9 @@ class AdaBoostFaceClassifier:
             X_train.extend(batch_features)
             y_train.extend(labels.numpy())
 
-            # Limit data for faster training
-            if len(X_train) > 2000:
+            # Limit data (AdaBoost classical ML không cần quá nhiều data)
+            if len(X_train) >= max_samples:
+                print(f"[INFO] Reached {len(X_train)} samples, stopping feature extraction")
                 break
 
         X_train = np.array(X_train)
