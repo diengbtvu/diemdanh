@@ -165,9 +165,9 @@ def train_model(model, train_loader, val_loader, num_epochs=200,
     device = DEVICE
     model = model.to(device)
 
-    criterion = nn.CrossEntropyLoss()
-    # Thêm weight decay (L2 regularization) để giảm overfitting
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)  # Label smoothing để tránh overconfident
+    # Thêm weight decay (L2 regularization) MẠNH để giảm overfitting
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=5e-4)
     
     # ReduceLROnPlateau: giảm LR khi val acc không cải thiện
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(

@@ -158,9 +158,25 @@ def create_dataloaders(dataset_dir=DATASET_DIR, batch_size=BATCH_SIZE, num_worke
             generator=torch.Generator().manual_seed(RANDOM_SEED)
         )
 
-        # Update test dataset transform
-        test_dataset.dataset.transform = test_transform
-        val_dataset.dataset.transform = test_transform
+        # QUAN TRỌNG: Tạo dataset riêng cho val và test với transform khác nhau
+        # Không được dùng chung transform với train set
+        val_dataset_clean = FaceDataset(dataset_dir, transform=test_transform, 
+                                        max_samples_per_class=None)
+        test_dataset_clean = FaceDataset(dataset_dir, transform=test_transform, 
+                                         max_samples_per_class=None)
+        
+        # Lấy indices từ random split
+        train_indices = train_dataset.indices
+        val_indices = val_dataset.indices  
+        test_indices = test_dataset.indices
+        
+        # Tạo Subset với transform riêng
+        from torch.utils.data import Subset
+        train_dataset = Subset(full_dataset, train_indices)
+        val_dataset = Subset(val_dataset_clean, val_indices)
+        test_dataset = Subset(test_dataset_clean, test_indices)
+        
+        print(f"[INFO] Split with different transforms to prevent data leakage")
 
         print(f"[OK] Train: {len(train_dataset)}, Val: {len(val_dataset)}, Test: {len(test_dataset)}")
 

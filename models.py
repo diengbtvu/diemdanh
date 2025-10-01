@@ -47,12 +47,15 @@ class VanillaCNN(nn.Module):
         self.classifier = nn.Sequential(
             nn.AdaptiveAvgPool2d((7, 7)),
             nn.Flatten(),
+            nn.Dropout(0.3),  # Thêm dropout sớm hơn
             nn.Linear(256 * 7 * 7, 512),
+            nn.BatchNorm1d(512),  # Thêm batch norm
             nn.ReLU(inplace=True),
-            nn.Dropout(0.5),
+            nn.Dropout(0.6),  # Tăng dropout
             nn.Linear(512, 256),
+            nn.BatchNorm1d(256),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.5),
+            nn.Dropout(0.6),
             nn.Linear(256, num_classes)
         )
 
@@ -122,9 +125,11 @@ class AttentionCNN(nn.Module):
         self.classifier = nn.Sequential(
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(),
+            nn.Dropout(0.3),
             nn.Linear(256, 512),
+            nn.BatchNorm1d(512),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.5),
+            nn.Dropout(0.6),
             nn.Linear(512, num_classes)
         )
 

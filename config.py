@@ -17,10 +17,10 @@ VAL_RATIO = 0.15
 TEST_RATIO = 0.15
 
 # ===== TRAINING CONFIGURATION =====
-# Training hyperparameters - OPTIMIZED FOR BEST RESULTS
+# Training hyperparameters - OPTIMIZED FOR REALISTIC RESULTS
 MAX_EPOCHS = 300  # Tăng lên 300 epochs để train kỹ hơn
-BATCH_SIZE = 32  # Giảm xuống 16 hoặc 8 nếu out of memory
-LEARNING_RATE = 0.0001  # Giảm LR để train stable hơn, converge tốt hơn
+BATCH_SIZE = 64  # Tăng batch size để generalization tốt hơn (giảm nếu out of memory)
+LEARNING_RATE = 0.001  # LR vừa phải cho stable training
 NUM_WORKERS = 0  # Đặt 0 cho Windows để tránh lỗi multiprocessing
 
 # Early stopping - CHO PHÉP TRAIN RẤT LÂU để đạt kết quả tốt nhất
@@ -51,19 +51,19 @@ IMAGE_SIZE = (224, 224)
 NORMALIZE_MEAN = [0.485, 0.456, 0.406]
 NORMALIZE_STD = [0.229, 0.224, 0.225]
 
-# Data augmentation - CÂN BẰNG giữa augmentation và học được features
+# Data augmentation - MẠNH HƠN để tránh overfitting
 RANDOM_HORIZONTAL_FLIP_PROB = 0.5
-RANDOM_ROTATION_DEGREES = 10  # Giảm về 10 (quá nhiều rotation làm khó học)
+RANDOM_ROTATION_DEGREES = 20  # Tăng lên 20 degrees
 COLOR_JITTER_PARAMS = {
-    'brightness': 0.2,  # Vừa phải
-    'contrast': 0.2,
-    'saturation': 0.2,
-    'hue': 0.1
+    'brightness': 0.3,  # Tăng lên
+    'contrast': 0.3,
+    'saturation': 0.3,
+    'hue': 0.15
 }
 
-# Augmentation options - VỪA PHẢI để không làm khó model
+# Augmentation options - MẠNH để force model generalize
 USE_RANDOM_ERASING = True
-RANDOM_ERASING_PROB = 0.2  # Giảm xuống 20% (vừa đủ)
+RANDOM_ERASING_PROB = 0.5  # Tăng lên 50%
 
 # Advanced augmentation
 USE_MIXUP = False  # Mixup có thể giúp nhưng phức tạp hơn
