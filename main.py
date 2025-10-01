@@ -81,7 +81,8 @@ def main():
         num_epochs=MAX_EPOCHS,
         model_name="vanilla_cnn",
         results_dir=RESULTS_DIR,
-        patience=EARLY_STOP_PATIENCE
+        patience=EARLY_STOP_PATIENCE,
+        class_names=full_dataset.classes  # Pass class names for visualization
     )
     
     print("\n[EVAL] Evaluating Vanilla CNN on test set...")
@@ -133,7 +134,8 @@ def main():
         num_epochs=MAX_EPOCHS,
         model_name="resnet50",
         results_dir=RESULTS_DIR,
-        patience=EARLY_STOP_PATIENCE
+        patience=EARLY_STOP_PATIENCE,
+        class_names=full_dataset.classes
     )
     
     print("\n[EVAL] Evaluating ResNet50 on test set...")
@@ -185,7 +187,8 @@ def main():
         num_epochs=MAX_EPOCHS,
         model_name="attention_cnn",
         results_dir=RESULTS_DIR,
-        patience=EARLY_STOP_PATIENCE
+        patience=EARLY_STOP_PATIENCE,
+        class_names=full_dataset.classes
     )
     
     print("\n[EVAL] Evaluating Attention CNN on test set...")

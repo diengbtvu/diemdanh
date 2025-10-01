@@ -23,8 +23,8 @@ BATCH_SIZE = 32  # Giảm xuống 16 hoặc 8 nếu out of memory
 LEARNING_RATE = 0.0001  # Giảm LR để train stable hơn, converge tốt hơn
 NUM_WORKERS = 0  # Đặt 0 cho Windows để tránh lỗi multiprocessing
 
-# Early stopping - CHO PHÉP TRAIN LÂU HƠN
-EARLY_STOP_PATIENCE = 30  # Tăng lên 30 epochs (cho phép model học lâu hơn)
+# Early stopping - CHO PHÉP TRAIN RẤT LÂU để đạt kết quả tốt nhất
+EARLY_STOP_PATIENCE = 50  # 50 epochs không cải thiện mới dừng
 EARLY_STOP_MIN_DELTA = 0.0001  # Giảm xuống 0.01% (nhạy hơn với cải thiện nhỏ)
 
 # Learning rate scheduler - FINE-TUNE CHẬM HƠN

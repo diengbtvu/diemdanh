@@ -5,11 +5,101 @@ Functions cho training models với Early Stopping và Learning Rate Scheduler
 
 import os
 import time
+import json
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend
+import matplotlib.pyplot as plt
+import numpy as np
 
 from config import *
+
+
+def save_val_predictions(model, val_loader, device, epoch, model_name, results_dir, 
+                        num_samples=16, class_names=None):
+    """
+    Lưu visualizations của predictions trên validation set
+    
+    Args:
+        model: Model đang train
+        val_loader: Validation data loader
+        device: Device (cuda/cpu)
+        epoch: Epoch hiện tại
+        model_name: Tên model
+        results_dir: Thư mục lưu kết quả
+        num_samples: Số samples để visualize
+        class_names: List tên các classes (optional)
+    """
+    model.eval()
+    
+    # Lấy một batch từ validation set
+    data_iter = iter(val_loader)
+    images, labels = next(data_iter)
+    
+    # Chỉ lấy num_samples đầu tiên
+    images = images[:num_samples].to(device)
+    labels = labels[:num_samples].to(device)
+    
+    # Predict
+    with torch.no_grad():
+        outputs = model(images)
+        _, predicted = torch.max(outputs, 1)
+    
+    # Denormalize images để hiển thị
+    mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1).to(device)
+    std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1).to(device)
+    images = images * std + mean
+    images = torch.clamp(images, 0, 1)
+    
+    # Move to CPU
+    images = images.cpu()
+    labels = labels.cpu()
+    predicted = predicted.cpu()
+    
+    # Create figure
+    rows = 4
+    cols = 4
+    fig, axes = plt.subplots(rows, cols, figsize=(12, 12))
+    fig.suptitle(f'{model_name} - Epoch {epoch} - Validation Predictions', fontsize=14, fontweight='bold')
+    
+    for idx in range(min(num_samples, rows*cols)):
+        row = idx // cols
+        col = idx % cols
+        ax = axes[row, col]
+        
+        # Display image
+        img = images[idx].permute(1, 2, 0).numpy()
+        ax.imshow(img)
+        
+        # Get labels
+        true_label = labels[idx].item()
+        pred_label = predicted[idx].item()
+        
+        # Use class names if provided, otherwise use indices
+        if class_names and true_label < len(class_names):
+            true_name = class_names[true_label]
+            pred_name = class_names[pred_label]
+        else:
+            true_name = f"Class {true_label}"
+            pred_name = f"Class {pred_label}"
+        
+        # Set title color based on correctness
+        is_correct = (true_label == pred_label)
+        color = 'green' if is_correct else 'red'
+        
+        title = f"True: {true_name}\nPred: {pred_name}"
+        ax.set_title(title, fontsize=8, color=color, fontweight='bold')
+        ax.axis('off')
+    
+    # Save figure
+    save_path = os.path.join(results_dir, f'{model_name}_val_predictions_epoch_{epoch}.png')
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    
+    return save_path
 
 
 class EarlyStopping:
@@ -55,7 +145,8 @@ class EarlyStopping:
 
 
 def train_model(model, train_loader, val_loader, num_epochs=200, 
-                model_name="model", results_dir="./results", patience=15):
+                model_name="model", results_dir="./results", patience=15, 
+                class_names=None):
     """
     Train a PyTorch model with Early Stopping
     
@@ -117,6 +208,17 @@ def train_model(model, train_loader, val_loader, num_epochs=200,
     print(f"Max Epochs: {num_epochs} | Early Stopping Patience: {patience}")
     print(f"Device: {device}")
     print(f"{'='*80}\n")
+    
+    # Tạo file để lưu training history real-time
+    history_file = os.path.join(results_dir, f'{model_name}_training_history.json')
+    log_file = os.path.join(results_dir, f'{model_name}_training_log.txt')
+    
+    # Log header
+    with open(log_file, 'w') as f:
+        f.write(f"Training Log for {model_name}\n")
+        f.write(f"Started at: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"Max Epochs: {num_epochs} | Patience: {patience}\n")
+        f.write("="*80 + "\n\n")
 
     for epoch in range(num_epochs):
         # ===== TRAINING PHASE =====
@@ -174,12 +276,53 @@ def train_model(model, train_loader, val_loader, num_epochs=200,
             best_val_acc = val_acc
             best_model_state = model.state_dict().copy()
 
-        # Print progress mỗi 5 epochs hoặc epoch cuối
+        # Print progress mỗi epoch
+        progress_msg = (f'Epoch [{epoch+1:3d}/{num_epochs}] | '
+                       f'Train Loss: {epoch_loss:.4f} | Train Acc: {train_acc:.2f}% | '
+                       f'Val Loss: {val_loss:.4f} | Val Acc: {val_acc:.2f}% | '
+                       f'LR: {current_lr:.6f}')
+        
+        # Print mỗi 5 epochs hoặc khi có improvement
+        if (epoch + 1) % 5 == 0 or epoch == 0 or val_acc > best_val_acc or epoch == num_epochs - 1:
+            print(progress_msg)
+            if val_acc > best_val_acc:
+                print(f'  ✓ New best model! Val Acc improved: {best_val_acc:.2f}% -> {val_acc:.2f}%')
+        
+        # Lưu log sau MỖI EPOCH (để theo dõi real-time)
+        with open(log_file, 'a') as f:
+            f.write(progress_msg + '\n')
+            if val_acc > best_val_acc:
+                f.write(f'  ✓ New best model saved!\n')
+        
+        # Lưu history JSON sau mỗi 5 epochs (không quá thường xuyên)
         if (epoch + 1) % 5 == 0 or epoch == 0 or epoch == num_epochs - 1:
-            print(f'Epoch [{epoch+1:3d}/{num_epochs}] | '
-                  f'Train Loss: {epoch_loss:.4f} | Train Acc: {train_acc:.2f}% | '
-                  f'Val Loss: {val_loss:.4f} | Val Acc: {val_acc:.2f}% | '
-                  f'LR: {current_lr:.6f}')
+            history_data = {
+                'model_name': model_name,
+                'current_epoch': epoch + 1,
+                'total_epochs': num_epochs,
+                'train_losses': train_losses,
+                'val_losses': val_losses,
+                'train_accuracies': train_accuracies,
+                'val_accuracies': val_accuracies,
+                'learning_rates': learning_rates,
+                'best_val_acc': best_val_acc,
+                'last_updated': time.strftime('%Y-%m-%d %H:%M:%S')
+            }
+            with open(history_file, 'w') as f:
+                json.dump(history_data, f, indent=2)
+            print(f'  [SAVED] Training history -> {history_file}')
+        
+        # Lưu visualization của validation predictions sau mỗi 10 epochs
+        if (epoch + 1) % 10 == 0 or epoch == 0 or val_acc > best_val_acc:
+            try:
+                vis_path = save_val_predictions(
+                    model, val_loader, device, epoch + 1, 
+                    model_name, results_dir, num_samples=16,
+                    class_names=class_names
+                )
+                print(f'  [SAVED] Validation predictions -> {vis_path}')
+            except Exception as e:
+                print(f'  [WARNING] Could not save validation predictions: {e}')
 
         # Learning rate scheduler
         # Warmup phase: tăng LR dần
@@ -210,6 +353,35 @@ def train_model(model, train_loader, val_loader, num_epochs=200,
     best_model_path = os.path.join(results_dir, f'{model_name}_best_model.pth')
     torch.save(best_model_state, best_model_path)
     print(f"[SAVED] Best model saved to: {best_model_path}")
+    
+    # Save final training history
+    final_history = {
+        'model_name': model_name,
+        'completed': True,
+        'total_epochs': len(train_losses),
+        'training_time_minutes': training_time / 60,
+        'train_losses': train_losses,
+        'val_losses': val_losses,
+        'train_accuracies': train_accuracies,
+        'val_accuracies': val_accuracies,
+        'learning_rates': learning_rates,
+        'best_val_acc': best_val_acc,
+        'best_epoch': early_stopping.best_epoch,
+        'early_stopped': early_stopping.early_stop,
+        'completed_at': time.strftime('%Y-%m-%d %H:%M:%S')
+    }
+    with open(history_file, 'w') as f:
+        json.dump(final_history, f, indent=2)
+    print(f"[SAVED] Final training history -> {history_file}")
+    
+    # Final log entry
+    with open(log_file, 'a') as f:
+        f.write(f"\n{'='*80}\n")
+        f.write(f"Training completed at: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"Total time: {training_time/60:.2f} minutes\n")
+        f.write(f"Best Val Accuracy: {best_val_acc:.2f}%\n")
+        f.write(f"Total Epochs: {len(train_losses)}\n")
+        f.write(f"{'='*80}\n")
     
     # Load best model for final evaluation
     model.load_state_dict(best_model_state)
