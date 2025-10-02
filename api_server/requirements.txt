@@ -1,0 +1,40 @@
+# Face Recognition API Server - Requirements
+# Python 3.8+
+
+# ===== WEB FRAMEWORK =====
+Flask>=2.3.0
+flask-restx>=1.1.0
+Werkzeug>=2.3.0
+
+# ===== DEEP LEARNING =====
+torch>=2.0.0
+torchvision>=0.15.0
+
+# ===== COMPUTER VISION =====
+opencv-python>=4.8.0
+facenet-pytorch>=2.5.3  # MTCNN for face detection
+
+# ===== IMAGE PROCESSING =====
+Pillow>=10.0.0
+numpy>=1.24.0
+
+# ===== YOLO (cho server_yolo.py) =====
+ultralytics>=8.0.0  # YOLOv8
+
+# ===== UTILITIES =====
+requests>=2.31.0  # For testing API
+
+# ===== PRODUCTION (Optional) =====
+# gunicorn>=21.2.0  # For production deployment (Linux/Mac)
+# waitress>=2.1.2   # For production deployment (Windows)
+
+# ===== NOTES =====
+# GPU Support: Install PyTorch with CUDA
+# Visit: https://pytorch.org/get-started/locally/
+# 
+# Example for CUDA 11.8:
+# pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+#
+# Example for CUDA 12.1:
+# pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
