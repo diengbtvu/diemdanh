@@ -1,0 +1,71 @@
+{
+  "experiment_info": {
+    "date": "2025-10-02 11:50:15",
+    "dataset_path": "/home/ngocgiau/Downloads/aligned_faces",
+    "num_classes": 294,
+    "train_samples": 25898,
+    "val_samples": 5549,
+    "test_samples": 5551,
+    "device": "GPU"
+  },
+  "model_results": {
+    "Vanilla CNN": {
+      "training_time": 13483.266507863998,
+      "best_val_accuracy": 100.0,
+      "test_accuracy": 100.0,
+      "test_precision": 100.0,
+      "test_recall": 100.0,
+      "test_f1": 100.0,
+      "inference_time": 8.450404644012451,
+      "model_size_mb": 26.79193878173828,
+      "total_epochs": 103,
+      "early_stopped": true,
+      "best_epoch": 53
+    },
+    "ResNet50": {
+      "training_time": 16889.841752767563,
+      "best_val_accuracy": 100.0,
+      "test_accuracy": 100.0,
+      "test_precision": 100.0,
+      "test_recall": 100.0,
+      "test_f1": 100.0,
+      "inference_time": 11.629046440124512,
+      "model_size_mb": 92.17706298828125,
+      "total_epochs": 94,
+      "early_stopped": true,
+      "best_epoch": 44
+    },
+    "Attention CNN": {
+      "training_time": 19728.403415441513,
+      "best_val_accuracy": 100.0,
+      "test_accuracy": 100.0,
+      "test_precision": 100.0,
+      "test_recall": 100.0,
+      "test_f1": 100.0,
+      "inference_time": 12.949872732162476,
+      "model_size_mb": 5.594196319580078,
+      "total_epochs": 96,
+      "early_stopped": true,
+      "best_epoch": 46
+    },
+    "AdaBoost": {
+      "training_time": 67.02763247489929,
+      "best_val_accuracy": 0,
+      "test_accuracy": 21.40154927040173,
+      "test_precision": 4.580263111734328,
+      "test_recall": 21.40154927040173,
+      "test_f1": 7.545641944869344,
+      "inference_time": 1.132129430770874,
+      "model_size_mb": 1.891505241394043,
+      "total_epochs": 200,
+      "early_stopped": false,
+      "best_epoch": 200
+    }
+  },
+  "best_models": {
+    "accuracy": "Vanilla CNN",
+    "speed": "AdaBoost",
+    "efficiency": "AdaBoost",
+    "balanced": "AdaBoost"
+  }
+}
