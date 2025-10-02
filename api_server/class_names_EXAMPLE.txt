@@ -1,0 +1,15 @@
+# Đây là file VÍ DỤ
+# Thay thế bằng TÊN THẬT các folders trong dataset của bạn
+#
+# Cách tạo file class_names.txt:
+# Option 1: Chạy script save_class_names.py (nếu có dataset)
+# Option 2: List tên folders và copy vào đây
+#
+# Format: Một class name mỗi dòng, theo ĐÚNG THỨ TỰ sorted
+
+Nguyen_Van_A
+Tran_Thi_B
+Le_Van_C
+Pham_Thi_D
+Hoang_Van_E
+

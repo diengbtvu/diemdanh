@@ -15,6 +15,7 @@ import os
 # Thêm path để import models
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models import AttentionCNN
+from api_server.utils import load_class_names
 
 app = Flask(__name__)
 app.config['RESTX_MASK_SWAGGER'] = False
@@ -39,10 +40,11 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NORMALIZE_MEAN = [0.485, 0.456, 0.406]
 NORMALIZE_STD = [0.229, 0.224, 0.225]
 
-# Load class names
-print("[INFO] Loading class names...")
-CLASS_NAMES = [f"student_{i:03d}" for i in range(294)]
-print(f"[INFO] Loaded {len(CLASS_NAMES)} classes")
+# Load class names từ file
+CLASS_NAMES = load_class_names(
+    class_names_file=os.path.join(os.path.dirname(__file__), "class_names.txt"),
+    num_classes=294
+)
 
 # Load model Attention CNN
 print("[INFO] Loading Attention CNN model...")
