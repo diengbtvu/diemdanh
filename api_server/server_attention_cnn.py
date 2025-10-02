@@ -17,6 +17,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models import AttentionCNN
 from api_server.utils import load_class_names
 from api_server.face_preprocessing import preprocess_face_advanced
+from api_server.smart_detector import smart_face_detection
 
 app = Flask(__name__)
 app.config['RESTX_MASK_SWAGGER'] = False
@@ -34,7 +35,7 @@ api = Api(
 # -------- CONFIG --------
 MODEL_PATH = "../face_detection_results/face_detection_results/attention_cnn_best_model.pth"
 IMG_SIZE = 224
-CONF_THRESHOLD = 0.5
+CONF_THRESHOLD = 0.3  # Giảm xuống 0.3 để capture aligned faces tốt hơn
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Normalization constants
@@ -50,7 +51,7 @@ CLASS_NAMES = load_class_names(
 # Load model Attention CNN
 print("[INFO] Loading Attention CNN model...")
 model = AttentionCNN(num_classes=len(CLASS_NAMES))
-model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
+model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE, weights_only=False))
 model.to(DEVICE)
 model.eval()
 print("[INFO] Attention CNN model loaded successfully!")
@@ -117,103 +118,138 @@ def preprocess_face_simple(face_img):
     return face_tensor
 
 def process_image(image_data):
-    """Xử lý ảnh và nhận dạng khuôn mặt"""
+    """
+    SMART PROCESSING: Tự động nhận diện và xử lý
+    - Aligned face (160x160) → Direct prediction (không dùng MTCNN)
+    - Full scene → MTCNN detection + Advanced preprocessing
+    """
     try:
-        print(f"[DEBUG] Processing image, type: {type(image_data)}")
-        
+        # Load image
         if isinstance(image_data, str):
-            print("[DEBUG] Processing base64 image")
             image_bytes = base64.b64decode(image_data)
             image = Image.open(io.BytesIO(image_bytes))
             frame = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
         else:
-            print("[DEBUG] Processing uploaded file")
             image = Image.open(image_data)
             frame = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
-        print(f"[DEBUG] Image shape: {frame.shape}")
+        h, w = frame.shape[:2]
+        print(f"[INPUT] Image size: {w}x{h}")
+        
+        # ===== SMART DETECTION =====
+        detection_result = smart_face_detection(frame, mtcnn)
+        mode = detection_result['mode']
+        
         results = []
         
-        print("[DEBUG] Detecting faces with MTCNN...")
-        boxes, probs, landmarks = mtcnn.detect(frame, landmarks=True)
-        print(f"[DEBUG] MTCNN detected boxes: {boxes}")
-
-        if boxes is not None:
-            print(f"[DEBUG] Found {len(boxes)} face(s)")
-            for i, box in enumerate(boxes):
-                print(f"[DEBUG] Processing face {i+1}: {box}")
+        # ===== MODE 1: ALIGNED FACE (ảnh đã crop) =====
+        if mode == 'aligned':
+            print("[MODE] ALIGNED FACE - Direct prediction")
+            
+            # Preprocess trực tiếp toàn bộ ảnh
+            face_tensor = preprocess_face_simple(frame).to(DEVICE)
+            
+            # Predict với top-3
+            with torch.no_grad():
+                outputs = model(face_tensor)
+                probs = torch.nn.functional.softmax(outputs, dim=1)
+                top3_conf, top3_idx = torch.topk(probs, k=min(3, len(CLASS_NAMES)), dim=1)
                 
-                # Get landmarks for this face
+                conf = top3_conf[0, 0].item()
+                pred_idx = top3_idx[0, 0].item()
+                pred_class = CLASS_NAMES[pred_idx]
+                
+                print(f"[TOP-1] {pred_class} (confidence: {conf:.4f})")
+                print(f"[TOP-2] {CLASS_NAMES[top3_idx[0, 1].item()]} ({top3_conf[0, 1].item():.4f})")
+                print(f"[TOP-3] {CLASS_NAMES[top3_idx[0, 2].item()]} ({top3_conf[0, 2].item():.4f})")
+                
+                if conf >= CONF_THRESHOLD:
+                    results.append({
+                        "face_id": 1,
+                        "class": pred_class,
+                        "confidence": round(conf, 4),
+                        "quality_score": 1.0,
+                        "mode": "aligned_face",
+                        "top_3_predictions": [
+                            {
+                                "class": CLASS_NAMES[top3_idx[0, i].item()],
+                                "confidence": round(top3_conf[0, i].item(), 4)
+                            }
+                            for i in range(min(3, len(CLASS_NAMES)))
+                        ],
+                        "bounding_box": {"x1": 0, "y1": 0, "x2": w, "y2": h}
+                    })
+                else:
+                    print(f"[WARN] Low confidence {conf:.4f} - Might be unknown person")
+        
+        # ===== MODE 2: FULL SCENE (cần MTCNN) =====
+        else:
+            print("[MODE] FULL SCENE - MTCNN detection + Advanced preprocessing")
+            
+            faces_list = detection_result['faces']
+            boxes = detection_result['boxes']
+            landmarks = detection_result['landmarks']
+            
+            if len(faces_list) == 0:
+                print("[WARN] No faces detected")
+                return {
+                    "success": True,
+                    "total_faces": 0,
+                    "detections": [],
+                    "processing_mode": mode,
+                    "message": "No faces detected"
+                }
+            
+            print(f"[DETECTED] {len(faces_list)} face(s)")
+            
+            for i, box in enumerate(boxes):
                 face_landmarks = landmarks[i] if landmarks is not None else None
                 
-                # ADVANCED PREPROCESSING với nhiều improvements
+                # Advanced preprocessing
                 preprocess_result = preprocess_face_advanced(
-                    frame=frame,
-                    bbox=box,
-                    landmarks=face_landmarks,
-                    enhance=True,      # Cải thiện chất lượng ảnh
-                    align=True,        # Căn chỉnh khuôn mặt
-                    quality_check=True # Kiểm tra chất lượng
+                    frame, box, face_landmarks,
+                    enhance=True, align=True, quality_check=True
                 )
                 
                 if preprocess_result is None:
-                    print(f"[DEBUG] Face {i+1} preprocessing failed")
                     continue
                 
                 face_tensor = preprocess_result['tensor'].to(DEVICE)
                 quality_score = preprocess_result['quality_score']
                 is_good_quality = preprocess_result['is_good_quality']
                 
-                print(f"[DEBUG] Face {i+1} quality: {quality_score:.2f} "
-                      f"({'Good' if is_good_quality else 'Low'})")
-                
-                if not is_good_quality:
-                    print(f"[DEBUG] Quality issues: {preprocess_result['quality_reasons']}")
+                print(f"[FACE {i+1}] Quality: {quality_score:.2f}")
                 
                 # Predict
-                print(f"[DEBUG] Running Attention CNN prediction for face {i+1}")
                 with torch.no_grad():
                     outputs = model(face_tensor)
-                    probabilities = torch.nn.functional.softmax(outputs, dim=1)
-                    confidence, predicted_idx = torch.max(probabilities, 1)
+                    probs = torch.nn.functional.softmax(outputs, dim=1)
+                    conf, pred_idx = torch.max(probs, 1)
                     
-                    conf = confidence.item()
-                    pred_class = CLASS_NAMES[predicted_idx.item()]
+                    conf = conf.item()
+                    pred_class = CLASS_NAMES[pred_idx.item()]
                     
-                    print(f"[DEBUG] Prediction: {pred_class} with confidence {conf}")
+                    print(f"[PREDICT] Face {i+1}: {pred_class} ({conf:.4f})")
                     
-                    # Adjust confidence threshold dựa trên quality
-                    # Nếu quality thấp, cần confidence cao hơn
-                    adjusted_threshold = CONF_THRESHOLD
-                    if not is_good_quality:
-                        adjusted_threshold = CONF_THRESHOLD + 0.1
-                        print(f"[DEBUG] Low quality face, increasing threshold to {adjusted_threshold}")
+                    # Adaptive threshold
+                    threshold = CONF_THRESHOLD + (0.15 if not is_good_quality else 0)
                     
-                    if conf >= adjusted_threshold:
-                        # Lấy bbox đã processed (có margin)
+                    if conf >= threshold:
                         x1, y1, x2, y2 = preprocess_result['original_bbox']
-                        
                         results.append({
                             "face_id": i + 1,
                             "class": pred_class,
                             "confidence": round(conf, 4),
                             "quality_score": round(quality_score, 2),
-                            "bounding_box": {
-                                "x1": int(x1),
-                                "y1": int(y1),
-                                "x2": int(x2),
-                                "y2": int(y2)
-                            }
+                            "mode": "scene_detection",
+                            "bounding_box": {"x1": int(x1), "y1": int(y1), "x2": int(x2), "y2": int(y2)}
                         })
-                    else:
-                        print(f"[DEBUG] Confidence {conf} below threshold {adjusted_threshold}")
-        else:
-            print("[DEBUG] No faces detected by MTCNN")
 
         return {
             "success": True,
             "total_faces": len(results),
-            "detections": results
+            "detections": results,
+            "processing_mode": mode
         }
 
     except Exception as e:

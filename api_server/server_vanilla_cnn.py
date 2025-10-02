@@ -33,8 +33,8 @@ api = Api(
 
 # -------- CONFIG --------
 MODEL_PATH = "../face_detection_results/face_detection_results/vanilla_cnn_best_model.pth"
-IMG_SIZE = 224              # Đúng với training
-CONF_THRESHOLD = 0.5
+IMG_SIZE = 224
+CONF_THRESHOLD = 0.3  # Giảm xuống 0.3 cho aligned faces
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Normalization constants (giống training)
@@ -50,7 +50,7 @@ CLASS_NAMES = load_class_names(
 # Load model Vanilla CNN
 print("[INFO] Loading Vanilla CNN model...")
 model = VanillaCNN(num_classes=len(CLASS_NAMES))
-model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
+model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE, weights_only=False))
 model.to(DEVICE)
 model.eval()
 print("[INFO] Vanilla CNN model loaded successfully!")
