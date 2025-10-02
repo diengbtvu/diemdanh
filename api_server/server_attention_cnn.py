@@ -16,6 +16,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models import AttentionCNN
 from api_server.utils import load_class_names
+from api_server.face_preprocessing import preprocess_face_advanced
 
 app = Flask(__name__)
 app.config['RESTX_MASK_SWAGGER'] = False
@@ -69,10 +70,11 @@ bounding_box_model = api.model('BoundingBox', {
 })
 
 detection_model = api.model('Detection', {
-    'face_id': fields.Integer(required=True),
-    'class': fields.String(required=True),
-    'confidence': fields.Float(required=True),
-    'bounding_box': fields.Nested(bounding_box_model, required=True)
+    'face_id': fields.Integer(required=True, description='Face ID'),
+    'class': fields.String(required=True, description='Predicted person name'),
+    'confidence': fields.Float(required=True, description='Model confidence (0-1)'),
+    'quality_score': fields.Float(required=True, description='Face image quality score (0-1)'),
+    'bounding_box': fields.Nested(bounding_box_model, required=True, description='Face bounding box')
 })
 
 prediction_response_model = api.model('PredictionResponse', {
@@ -100,8 +102,8 @@ base64_input_model = api.model('Base64Input', {
 upload_parser = reqparse.RequestParser()
 upload_parser.add_argument('image', location='files', type=FileStorage, required=True)
 
-def preprocess_face(face_img):
-    """Preprocess face image giống như training"""
+def preprocess_face_simple(face_img):
+    """Preprocess face image - Simple version (backward compatibility)"""
     face_resized = cv2.resize(face_img, (IMG_SIZE, IMG_SIZE))
     face_rgb = cv2.cvtColor(face_resized, cv2.COLOR_BGR2RGB)
     face_tensor = torch.from_numpy(face_rgb).float()
@@ -133,21 +135,42 @@ def process_image(image_data):
         results = []
         
         print("[DEBUG] Detecting faces with MTCNN...")
-        boxes, _ = mtcnn.detect(frame)
+        boxes, probs, landmarks = mtcnn.detect(frame, landmarks=True)
         print(f"[DEBUG] MTCNN detected boxes: {boxes}")
 
         if boxes is not None:
             print(f"[DEBUG] Found {len(boxes)} face(s)")
             for i, box in enumerate(boxes):
                 print(f"[DEBUG] Processing face {i+1}: {box}")
-                x1, y1, x2, y2 = [int(b) for b in box]
-
-                face = frame[y1:y2, x1:x2]
-                if face.size == 0:
-                    continue
-
-                face_tensor = preprocess_face(face).to(DEVICE)
                 
+                # Get landmarks for this face
+                face_landmarks = landmarks[i] if landmarks is not None else None
+                
+                # ADVANCED PREPROCESSING với nhiều improvements
+                preprocess_result = preprocess_face_advanced(
+                    frame=frame,
+                    bbox=box,
+                    landmarks=face_landmarks,
+                    enhance=True,      # Cải thiện chất lượng ảnh
+                    align=True,        # Căn chỉnh khuôn mặt
+                    quality_check=True # Kiểm tra chất lượng
+                )
+                
+                if preprocess_result is None:
+                    print(f"[DEBUG] Face {i+1} preprocessing failed")
+                    continue
+                
+                face_tensor = preprocess_result['tensor'].to(DEVICE)
+                quality_score = preprocess_result['quality_score']
+                is_good_quality = preprocess_result['is_good_quality']
+                
+                print(f"[DEBUG] Face {i+1} quality: {quality_score:.2f} "
+                      f"({'Good' if is_good_quality else 'Low'})")
+                
+                if not is_good_quality:
+                    print(f"[DEBUG] Quality issues: {preprocess_result['quality_reasons']}")
+                
+                # Predict
                 print(f"[DEBUG] Running Attention CNN prediction for face {i+1}")
                 with torch.no_grad():
                     outputs = model(face_tensor)
@@ -159,11 +182,22 @@ def process_image(image_data):
                     
                     print(f"[DEBUG] Prediction: {pred_class} with confidence {conf}")
                     
-                    if conf >= CONF_THRESHOLD:
+                    # Adjust confidence threshold dựa trên quality
+                    # Nếu quality thấp, cần confidence cao hơn
+                    adjusted_threshold = CONF_THRESHOLD
+                    if not is_good_quality:
+                        adjusted_threshold = CONF_THRESHOLD + 0.1
+                        print(f"[DEBUG] Low quality face, increasing threshold to {adjusted_threshold}")
+                    
+                    if conf >= adjusted_threshold:
+                        # Lấy bbox đã processed (có margin)
+                        x1, y1, x2, y2 = preprocess_result['original_bbox']
+                        
                         results.append({
                             "face_id": i + 1,
                             "class": pred_class,
                             "confidence": round(conf, 4),
+                            "quality_score": round(quality_score, 2),
                             "bounding_box": {
                                 "x1": int(x1),
                                 "y1": int(y1),
@@ -171,6 +205,8 @@ def process_image(image_data):
                                 "y2": int(y2)
                             }
                         })
+                    else:
+                        print(f"[DEBUG] Confidence {conf} below threshold {adjusted_threshold}")
         else:
             print("[DEBUG] No faces detected by MTCNN")
 

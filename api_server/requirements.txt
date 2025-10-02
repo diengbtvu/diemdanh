@@ -4,6 +4,7 @@
 # ===== WEB FRAMEWORK =====
 Flask>=2.3.0
 flask-restx>=1.1.0
+flask-cors>=4.0.0  # CORS support for frontend
 Werkzeug>=2.3.0
 
 # ===== DEEP LEARNING =====
@@ -12,14 +13,16 @@ torchvision>=0.15.0
 
 # ===== COMPUTER VISION =====
 opencv-python>=4.8.0
-facenet-pytorch>=2.5.3  # MTCNN for face detection
+opencv-contrib-python>=4.8.0  # Extra CV features (CLAHE, etc.)
+facenet-pytorch>=2.5.3  # MTCNN for face detection with landmarks
 
 # ===== IMAGE PROCESSING =====
 Pillow>=10.0.0
 numpy>=1.24.0
+scikit-image>=0.21.0  # Advanced image processing
 
-# ===== YOLO (cho server_yolo.py) =====
-ultralytics>=8.0.0  # YOLOv8
+# ===== YOLO (cho server_yolo.py - optional) =====
+# ultralytics>=8.0.0  # YOLOv8 - uncomment if using server_yolo.py
 
 # ===== UTILITIES =====
 requests>=2.31.0  # For testing API
