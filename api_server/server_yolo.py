@@ -174,24 +174,46 @@ def process_image(image_data):
 @ns.route('/predict/file')
 class PredictFile(Resource):
     @ns.doc('predict_from_file')
-    @ns.expect(upload_parser)
     @ns.response(200, 'Success', prediction_response_model)
     @ns.response(400, 'Bad Request', error_response_model)
     @ns.response(500, 'Internal Server Error', error_response_model)
     def post(self):
-        """Upload an image file for face recognition"""
+        """Upload an image file for face recognition (FLEXIBLE - accepts file or base64)"""
         try:
-            args = upload_parser.parse_args()
-            file = args['image']
+            print(f"[DEBUG] Request headers: {dict(request.headers)}")
+            print(f"[DEBUG] Request content_type: {request.content_type}")
             
-            if file.filename == '':
-                return {"success": False, "error": "No file selected"}, 400
+            # Try FILE UPLOAD first
+            if 'image' in request.files:
+                file = request.files['image']
+                if file.filename == '':
+                    return {"success": False, "error": "No file selected"}, 400
+                
+                print(f"[DEBUG] Processing uploaded file: {file.filename}")
+                result = process_image(file)
             
-            print(f"[DEBUG] Processing uploaded file: {file.filename}")
-            result = process_image(file)
+            # Try BASE64 in JSON
+            elif request.json and 'image' in request.json:
+                print(f"[DEBUG] Processing base64 image from JSON")
+                result = process_image(request.json['image'])
+            
+            # Try form data with base64
+            elif request.form and 'image' in request.form:
+                print(f"[DEBUG] Processing base64 from form data")
+                result = process_image(request.form['image'])
+            
+            else:
+                print(f"[ERROR] No image found in request")
+                print(f"[DEBUG] request.files: {list(request.files.keys())}")
+                print(f"[DEBUG] request.json: {request.json}")
+                print(f"[DEBUG] request.form: {dict(request.form)}")
+                return {
+                    "success": False,
+                    "error": "No image provided. Send file upload or base64 in JSON"
+                }, 400
+            
             print(f"[DEBUG] Process result: {result}")
             
-            # Trả về response trực tiếp không qua marshal
             if result.get('success', False):
                 response_data = {
                     "success": True,

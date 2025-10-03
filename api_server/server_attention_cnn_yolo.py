@@ -247,10 +247,16 @@ def process_image(image_data):
         }
     
     except Exception as e:
-        print(f"[ERROR] {e}")
+        print("="*80)
+        print("[ERROR] EXCEPTION IN process_image:")
+        print("="*80)
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error message: {str(e)}")
+        print("\nFull traceback:")
         import traceback
         traceback.print_exc()
-        return {"success": False, "error": str(e)}
+        print("="*80)
+        return {"success": False, "error": f"{type(e).__name__}: {str(e)}"}
 
 
 @ns.route('/predict/file')
@@ -269,7 +275,10 @@ class PredictFile(Resource):
             result = process_image(file)
             return result, 200 if result.get('success') else 500
         except Exception as e:
-            return {"success": False, "error": str(e)}, 500
+            print(f"[ERROR in endpoint] {type(e).__name__}: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {"success": False, "error": f"{type(e).__name__}: {str(e)}"}, 500
 
 
 @ns.route('/predict/base64')
@@ -286,7 +295,10 @@ class PredictBase64(Resource):
             result = process_image(data['image'])
             return result, 200 if result.get('success') else 500
         except Exception as e:
-            return {"success": False, "error": str(e)}, 500
+            print(f"[ERROR in endpoint] {type(e).__name__}: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {"success": False, "error": f"{type(e).__name__}: {str(e)}"}, 500
 
 
 @ns.route('/health')

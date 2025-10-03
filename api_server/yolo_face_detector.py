@@ -30,6 +30,16 @@ class YOLOFaceDetector:
         print(f"[OK] YOLO face detector loaded (margin={margin}, size={image_size})")
     
     def detect_and_align(self, image, detect_multiple_faces=False):
+        """WRAPPED với try-except để catch errors"""
+        try:
+            return self._detect_and_align_internal(image, detect_multiple_faces)
+        except Exception as e:
+            print(f"[ERROR in YOLO detector] {type(e).__name__}: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return []
+    
+    def _detect_and_align_internal(self, image, detect_multiple_faces=False):
         """
         Detect và align faces - GIỐNG HỆT logic tạo dataset
         
