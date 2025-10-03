@@ -23,6 +23,10 @@ seaborn>=0.12.0
 # Image Processing
 Pillow>=10.0.0
 
+# YOLO (for train_yolo.py)
+ultralytics>=8.0.0
+split-folders>=0.5.1
+
 # Optional: For GPU support
 # Install CUDA toolkit separately and ensure compatible PyTorch version
 # Visit: https://pytorch.org/get-started/locally/

@@ -21,8 +21,8 @@ Pillow>=10.0.0
 numpy>=1.24.0
 scikit-image>=0.21.0  # Advanced image processing
 
-# ===== YOLO (cho server_yolo.py - optional) =====
-# ultralytics>=8.0.0  # YOLOv8 - uncomment if using server_yolo.py
+# ===== YOLO =====
+ultralytics>=8.0.0  # YOLOv8/v12 - Required for YOLO face detection
 
 # ===== UTILITIES =====
 requests>=2.31.0  # For testing API
